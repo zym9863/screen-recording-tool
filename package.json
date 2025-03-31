@@ -19,7 +19,13 @@
   "build": {
     "appId": "com.screenrecorder.app",
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "assets/image_fx_.ico",
+      "signingHashAlgorithms": null,
+      "signAndEditExecutable": false
+    },
+    "electronDownload": {
+      "mirror": "https://npmmirror.com/mirrors/electron/"
     }
   }
 }
