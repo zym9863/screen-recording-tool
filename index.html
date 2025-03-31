@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>屏幕录制</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --primary-color: #3A7BFF; /* 科技蓝主色调 */
+            --secondary-color: #FF6D3A; /* 活力橙辅助色 */
+            --bg-dark: #2C3E50; /* 深灰背景 */
+            --bg-light: #F5F7FA; /* 浅灰面板 */
+            --success-color: #2ED573; /* 成功状态 */
+            --error-color: #FF4757; /* 错误提示 */
+            --border-radius: 6px; /* 统一圆角 */
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08); /* 轻微阴影 */
+            --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.12); /* 中等阴影 */
+            --transition-normal: all 0.3s cubic-bezier(0.2, 0, 0.1, 1); /* 缓动曲线 */
+        }
+
+        body {
+            font-family: 'SF Pro Display', 'PingFang SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', 'HarmonyOS Sans', Arial, sans-serif;
+            background-color: var(--bg-dark);
+            color: white;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+        }
+
+        .container {
+            background: var(--bg-light);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow-md);
+            padding: 24px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            color: var(--bg-dark);
+        }
+
+        .app-title {
+            text-align: center;
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--bg-dark);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 500;
+            transition: var(--transition-normal);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        button:active {
+            transform: scale(0.96);
+        }
+
+        .record-btn {
+            background-color: var(--primary-color);
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .record-btn:hover {
+            background-color: #2a6ae9;
+            box-shadow: var(--shadow-md);
+        }
+
+        .record-btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .record-btn:active::before {
+            width: 300px;
+            height: 300px;
+            opacity: 0;
+        }
+
+        .download-btn {
+            background-color: var(--secondary-color);
+            color: white;
+        }
+
+        .download-btn:hover {
+            background-color: #e85a2a;
+            box-shadow: var(--shadow-md);
+        }
+
+        .download-btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .preview-area {
+            flex: 1;
+            background-color: rgba(0, 0, 0, 0.03);
+            border: 2px dashed #dee2e6;
+            border-radius: var(--border-radius);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 300px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .preview-area video {
+            max-width: 100%;
+            max-height: 100%;
+            display: none;
+            border-radius: 4px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        #placeholder {
+            color: #8a94a6;
+            font-size: 15px;
+            text-align: center;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+        }
+
+        #placeholder::before {
+            content: '';
+            width: 64px;
+            height: 64px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238a94a6' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M23 7l-7 5 7 5V7z'/%3E%3Crect x='1' y='5' width='15' height='14' rx='2' ry='2'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: center;
+            opacity: 0.5;
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background-color: rgba(0, 0, 0, 0.03);
+            border-radius: var(--border-radius);
+        }
+
+        .recording-indicator {
+            display: none;
+            align-items: center;
+            gap: 8px;
+            color: var(--error-color);
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .recording-indicator::before {
+            content: '';
+            width: 12px;
+            height: 12px;
+            background-color: var(--error-color);
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 71, 87, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(255, 71, 87, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 71, 87, 0); }
+        }
+        
+        @keyframes pulse-scale {
+            0% { transform: scale(0.95); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        @keyframes fade-in {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        @keyframes fade-out {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+        
+        @keyframes button-pulse {
+            0% { box-shadow: 0 0 0 0 rgba(255, 71, 87, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(255, 71, 87, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 71, 87, 0); }
+        }
+        
+        .record-btn.recording {
+            background-color: var(--error-color);
+        }
+        
+        .record-btn.recording:hover {
+            background-color: #e03e4e;
+        }
+
+        .timer {
+            font-family: 'SF Mono', 'Menlo', monospace;
+            font-size: 16px;
+            font-weight: 500;
+            color: var(--bg-dark);
+            background-color: rgba(0, 0, 0, 0.05);
+            padding: 6px 12px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="app-title">屏幕录制工具</h1>
+        <div class="button-group">
+            <button class="record-btn" id="recordBtn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="12" cy="12" r="8" fill="white"/>
+                </svg>
+                选区录制
+            </button>
+            <button class="download-btn" id="downloadBtn" disabled>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                下载录像
+            </button>
+        </div>
+        
+        <div class="preview-area">
+            <video id="preview" controls></video>
+            <div id="placeholder">录制的视频将在这里显示</div>
+        </div>
+
+        <div class="status-bar">
+            <div class="recording-indicator" id="recordingIndicator">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="12" cy="12" r="10" stroke="var(--error-color)" stroke-width="2"/>
+                    <circle cx="12" cy="12" r="6" fill="var(--error-color)"/>
+                </svg>
+                正在录制
+            </div>
+            <div class="timer" id="timer">00:00:00</div>
+        </div>
+    </div>
+
+    <script>
+        const { desktopCapturer, dialog } = require('@electron/remote');
+        const fs = require('fs');
+        const { ipcRenderer } = require('electron');
+        let mediaRecorder;
+        let recordedChunks = [];
+        let isRecording = false;
+        let startTime;
+        let timerInterval;
+        let selectedSource = null;
+        let sourceSelectWindow = null;
+
+        // 获取DOM元素
+        const recordBtn = document.getElementById('recordBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const preview = document.getElementById('preview');
+        const placeholder = document.getElementById('placeholder');
+        const recordingIndicator = document.getElementById('recordingIndicator');
+        const timer = document.getElementById('timer');
+        
+        // 下载录制文件 - 将事件监听器移到外部只添加一次
+        downloadBtn.addEventListener('click', async () => {
+            if (!downloadBtn.blob) return;
+            
+            const defaultPath = `screen-recording-${new Date().toISOString()}.mp4`;
+            const { filePath } = await dialog.showSaveDialog({
+                defaultPath: defaultPath,
+                filters: [
+                    { name: 'MP4', extensions: ['mp4'] },
+                    { name: 'WebM', extensions: ['webm'] }
+                ]
+            });
+
+            if (filePath) {
+                // 使用fs模块直接保存文件，而不是通过浏览器下载
+                const fs = require('fs');
+                const reader = new FileReader();
+                
+                reader.onload = () => {
+                    const buffer = Buffer.from(reader.result);
+                    fs.writeFile(filePath, buffer, (err) => {
+                        if (err) {
+                            console.error('保存文件失败:', err);
+                            alert('保存文件失败: ' + err.message);
+                        } else {
+                            console.log('文件已保存到:', filePath);
+                        }
+                    });
+                };
+                
+                reader.onerror = (error) => {
+                    console.error('读取文件失败:', error);
+                    alert('读取文件失败: ' + error.message);
+                };
+                
+                reader.readAsArrayBuffer(downloadBtn.blob);
+            }
+        });
+
+        // 创建源选择窗口
+        async function createSourceSelectWindow() {
+            const sources = await desktopCapturer.getSources({
+                types: ['window', 'screen']
+            });
+
+            const sourceList = document.createElement('div');
+            sourceList.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--bg-light); padding: 24px; border-radius: var(--border-radius); box-shadow: var(--shadow-md); z-index: 1000; max-height: 80vh; overflow-y: auto; color: var(--bg-dark); animation: fadeIn 0.3s cubic-bezier(0.2, 0, 0.1, 1);';
+            sourceList.innerHTML = `
+                <h3 style="margin-bottom: 20px; font-size: 18px; font-weight: 600; color: var(--bg-dark);">选择要录制的窗口或屏幕</h3>
+                ${sources.map(source => `
+                    <div style="display: flex; align-items: center; margin: 12px 0; cursor: pointer; padding: 12px; border-radius: var(--border-radius); transition: var(--transition-normal); box-shadow: var(--shadow-sm);" 
+                         onmouseover="this.style.background='rgba(58, 123, 255, 0.08)'; this.style.transform='translateY(-2px)'; this.style.boxShadow='var(--shadow-md)'" 
+                         onmouseout="this.style.background='transparent'; this.style.transform='translateY(0)'; this.style.boxShadow='var(--shadow-sm)'"
+                         onclick="selectSource('${source.id}')">
+                        <img src="${source.thumbnail.toDataURL()}" style="width: 160px; margin-right: 16px; border-radius: var(--border-radius); box-shadow: 0 2px 6px rgba(0,0,0,0.1);">
+                        <div>
+                            <span style="font-weight: 500; font-size: 15px;">${source.name}</span>
+                            <div style="font-size: 12px; color: #8a94a6; margin-top: 4px;">点击选择此窗口</div>
+                        </div>
+                    </div>
+                `).join('')}
+                <div style="display: flex; align-items: center; margin: 12px 0; cursor: pointer; padding: 12px; border-radius: var(--border-radius); transition: var(--transition-normal); background-color: rgba(58, 123, 255, 0.08); box-shadow: var(--shadow-sm);" 
+                     onmouseover="this.style.background='rgba(58, 123, 255, 0.15)'; this.style.transform='translateY(-2px)'; this.style.boxShadow='var(--shadow-md)'" 
+                     onmouseout="this.style.background='rgba(58, 123, 255, 0.08)'; this.style.transform='translateY(0)'; this.style.boxShadow='var(--shadow-sm)'"
+                     onclick="selectCustomRegion()">
+                    <div style="width: 160px; height: 90px; margin-right: 16px; border-radius: var(--border-radius); background-color: rgba(0,0,0,0.03); display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,0.1);">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="3" y="3" width="18" height="18" rx="2" stroke="var(--primary-color)" stroke-width="2" stroke-dasharray="4 2"/>
+                            <path d="M9 9L15 15M15 9L9 15" stroke="var(--primary-color)" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <span style="font-weight: 500; font-size: 15px;">自定义区域</span>
+                        <div style="font-size: 12px; color: #8a94a6; margin-top: 4px;">选择屏幕上的特定区域进行录制</div>
+                    </div>
+                </div>
+            `;
+            
+            // 添加关闭按钮
+            const closeButton = document.createElement('div');
+            closeButton.style.cssText = 'position: absolute; top: 16px; right: 16px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 50%; transition: var(--transition-normal);';
+            closeButton.innerHTML = `
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M18 6L6 18M6 6l12 12" stroke="var(--bg-dark)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            `;
+            closeButton.onmouseover = () => {
+                closeButton.style.backgroundColor = 'rgba(0,0,0,0.05)';
+            };
+            closeButton.onmouseout = () => {
+                closeButton.style.backgroundColor = 'transparent';
+            };
+            closeButton.onclick = () => {
+                sourceList.remove();
+                sourceSelectWindow = null;
+            };
+            sourceList.appendChild(closeButton);
+            
+            // 添加淡入动画样式
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes fadeIn {
+                    from { opacity: 0; transform: translate(-50%, -48%); }
+                    to { opacity: 1; transform: translate(-50%, -50%); }
+                }
+            `;
+            document.head.appendChild(style);
+            document.body.appendChild(sourceList);
+            return sourceList;
+        }
+
+        // 选择源
+        window.selectSource = async (sourceId) => {
+            const sources = await desktopCapturer.getSources({
+                types: ['window', 'screen']
+            });
+            selectedSource = sources.find(source => source.id === sourceId);
+            if (sourceSelectWindow) {
+                sourceSelectWindow.remove();
+                sourceSelectWindow = null;
+            }
+            startRecording();
+        };
+
+        // 选择自定义区域
+        window.selectCustomRegion = () => {
+            if (sourceSelectWindow) {
+                sourceSelectWindow.remove();
+                sourceSelectWindow = null;
+            }
+            
+            // 使用IPC向主进程发送消息，创建全屏透明窗口进行区域选择
+            ipcRenderer.send('start-region-select');
+            
+            // 监听区域选择结果
+            ipcRenderer.once('region-data', (event, region) => {
+                // 开始录制自定义区域
+                startRecordingCustomRegion(region);
+            });
+        };
+
+        // 开始录制自定义区域
+        async function startRecordingCustomRegion(region) {
+            try {
+                // 获取所有可用的屏幕源
+                const sources = await desktopCapturer.getSources({
+                    types: ['screen']
+                });
+                
+                // 选择主屏幕
+                const primaryScreen = sources[0];
+                
+                // 使用与startRecording相同的方式获取媒体流
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    audio: false,
+                    video: {
+                        mandatory: {
+                            chromeMediaSource: 'desktop',
+                            chromeMediaSourceId: primaryScreen.id,
+                            minWidth: 1280,
+                            maxWidth: 8000,
+                            minHeight: 720,
+                            maxHeight: 8000
+                        }
+                    }
+                });
+                
+                // 创建一个用于裁剪的canvas
+                const canvas = document.createElement('canvas');
+                canvas.width = region.width;
+                canvas.height = region.height;
+                const ctx = canvas.getContext('2d');
+                
+                // 创建视频元素来接收原始流
+                const videoElem = document.createElement('video');
+                videoElem.srcObject = stream;
+                videoElem.play();
+                
+                // 获取屏幕缩放比例，解决高DPI屏幕下坐标不准确的问题
+                const scaleFactor = window.devicePixelRatio || 1;
+                
+                // 使用canvas捕获指定区域
+                const frameProcessor = setInterval(() => {
+                    try {
+                        // 修正：考虑屏幕缩放比例，确保坐标准确
+                        // 正确使用drawImage参数：源图像、源x、源y、源宽度、源高度、目标x、目标y、目标宽度、目标高度
+                        ctx.clearRect(0, 0, canvas.width, canvas.height);
+                        
+                        // 使用region传递的缩放因子，如果没有则使用默认值
+                        const scaleFactor = region.scaleFactor || window.devicePixelRatio || 1;
+                        console.log('使用缩放因子:', scaleFactor, '录制区域:', region);
+                        
+                        ctx.drawImage(
+                            videoElem, 
+                            Math.round(region.x * scaleFactor), 
+                            Math.round(region.y * scaleFactor), 
+                            Math.round(region.width * scaleFactor), 
+                            Math.round(region.height * scaleFactor), 
+                            0, 0, region.width, region.height
+                        );
+                    } catch (err) {
+                        console.error('Canvas绘制错误:', err);
+                    }
+                }, 16); // 约60fps
+                
+                // 从canvas创建新的媒体流
+                const canvasStream = canvas.captureStream(60);
+                
+                // 处理原始流结束事件
+                stream.getVideoTracks()[0].addEventListener('ended', () => {
+                    clearInterval(frameProcessor);
+                    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                        mediaRecorder.stop();
+                    }
+                });
+                
+                // 使用新的canvas流进行录制
+                handleStream(canvasStream);
+                
+                // 保存引用以便后续清理
+                selectedSource = {
+                    id: 'custom-region',
+                    name: '自定义区域',
+                    frameProcessor,
+                    originalStream: stream,
+                    canvasStream
+                };
+                
+                // 更新按钮文本
+                recordBtn.textContent = '停止录制';
+            } catch (e) {
+                console.error('获取媒体流失败:', e);
+                alert('获取媒体流失败: ' + e.message);
+            }
+        }
+        
+        // 这里不需要额外的代码
+        // 开始录制
+        async function startRecording() {
+            if (selectedSource) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        audio: false,
+                        video: {
+                            mandatory: {
+                                chromeMediaSource: 'desktop',
+                                chromeMediaSourceId: selectedSource.id
+                            }
+                        }
+                    });
+
+                    handleStream(stream);
+                } catch (e) {
+                    console.error('获取媒体流失败:', e);
+                    alert('获取媒体流失败: ' + e.message);
+                }
+            }
+        }
+
+        // 开始/停止录制
+        recordBtn.addEventListener('click', async () => {
+            if (!isRecording) {
+                sourceSelectWindow = await createSourceSelectWindow();
+            } else {
+                stopRecording();
+            }
+        });
+
+        // 处理媒体流
+        function handleStream(stream) {
+            // 使用MP4格式的MIME类型
+            const options = { mimeType: 'video/mp4; codecs=h264' };
+            
+            // 检查浏览器是否支持指定的MIME类型
+            if (MediaRecorder.isTypeSupported(options.mimeType)) {
+                mediaRecorder = new MediaRecorder(stream, options);
+            } else {
+                // 如果不支持H.264编码，则尝试使用默认编码
+                console.warn('H.264编码不受支持，使用默认编码');
+                mediaRecorder = new MediaRecorder(stream);
+            }
+            
+            mediaRecorder.ondataavailable = handleDataAvailable;
+            mediaRecorder.onstop = handleStop;
+
+            recordedChunks = [];
+            mediaRecorder.start();
+            isRecording = true;
+            
+            // 更新录制按钮状态和样式
+            recordBtn.innerHTML = `
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="6" y="6" width="12" height="12" rx="2" fill="white"/>
+                </svg>
+                停止录制
+            `;
+            recordBtn.classList.add('recording');
+            
+            // 添加录制开始的动画效果
+            recordBtn.style.animation = 'pulse-scale 0.3s cubic-bezier(0.2, 0, 0.1, 1)';
+            setTimeout(() => {
+                recordBtn.style.animation = '';
+            }, 300);
+            
+            // 显示录制指示器
+            recordingIndicator.style.display = 'flex';
+            recordingIndicator.style.animation = 'fade-in 0.3s cubic-bezier(0.2, 0, 0.1, 1)';
+            
+            startTimer();
+            
+            // 添加录制中的脉冲效果到按钮
+            recordBtn.style.boxShadow = '0 0 0 0 rgba(255, 71, 87, 0.7)';
+            recordBtn.style.animation = 'button-pulse 2s infinite cubic-bezier(0.66, 0, 0, 1)';
+        }
+
+        // 处理录制数据
+        function handleDataAvailable(e) {
+            if (e.data.size > 0) {
+                recordedChunks.push(e.data);
+            }
+        }
+
+        // 停止录制
+        function stopRecording() {
+            mediaRecorder.stop();
+            isRecording = false;
+            
+            // 恢复录制按钮状态和样式
+            recordBtn.innerHTML = `
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="12" cy="12" r="8" fill="white"/>
+                </svg>
+                选区录制
+            `;
+            recordBtn.classList.remove('recording');
+            recordBtn.style.animation = '';
+            recordBtn.style.boxShadow = '';
+            
+            // 添加停止录制的动画效果
+            recordBtn.style.animation = 'pulse-scale 0.3s cubic-bezier(0.2, 0, 0.1, 1)';
+            setTimeout(() => {
+                recordBtn.style.animation = '';
+            }, 300);
+            
+            // 隐藏录制指示器
+            recordingIndicator.style.animation = 'fade-out 0.3s cubic-bezier(0.2, 0, 0.1, 1)';
+            setTimeout(() => {
+                recordingIndicator.style.display = 'none';
+                recordingIndicator.style.animation = '';
+            }, 300);
+            
+            stopTimer();
+            
+            // 清理自定义区域录制的资源
+            if (selectedSource && selectedSource.id === 'custom-region') {
+                clearInterval(selectedSource.frameProcessor);
+                if (selectedSource.originalStream) {
+                    selectedSource.originalStream.getTracks().forEach(track => track.stop());
+                }
+            }
+        }
+
+        // 处理录制停止
+        function handleStop() {
+            const blob = new Blob(recordedChunks, { type: 'video/mp4' });
+            const url = URL.createObjectURL(blob);
+            
+            // 设置视频源并添加加载事件
+            preview.src = url;
+            preview.onloadeddata = () => {
+                // 添加淡入效果
+                preview.style.opacity = '0';
+                preview.style.display = 'block';
+                placeholder.style.opacity = '1';
+                placeholder.style.display = 'none';
+                
+                // 触发重排后淡入
+                setTimeout(() => {
+                    preview.style.transition = 'opacity 0.5s cubic-bezier(0.2, 0, 0.1, 1)';
+                    preview.style.opacity = '1';
+                }, 50);
+            };
+            
+            // 启用下载按钮并添加动画效果
+            downloadBtn.disabled = false;
+            downloadBtn.style.animation = 'pulse-scale 0.5s cubic-bezier(0.2, 0, 0.1, 1)';
+            setTimeout(() => {
+                downloadBtn.style.animation = '';
+            }, 500);
+
+            // 更新下载按钮的blob数据
+            downloadBtn.blob = blob;
+            
+            // 显示成功提示
+            const successToast = document.createElement('div');
+            successToast.style.cssText = `
+                position: fixed;
+                bottom: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                background-color: var(--success-color);
+                color: white;
+                padding: 12px 20px;
+                border-radius: var(--border-radius);
+                box-shadow: var(--shadow-md);
+                font-weight: 500;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                z-index: 1000;
+                opacity: 0;
+                transition: opacity 0.3s cubic-bezier(0.2, 0, 0.1, 1);
+            `;
+            successToast.innerHTML = `
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M20 6L9 17l-5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                录制完成，可以下载视频
+            `;
+            document.body.appendChild(successToast);
+            
+            // 显示提示并设置自动消失
+            setTimeout(() => {
+                successToast.style.opacity = '1';
+            }, 100);
+            
+            setTimeout(() => {
+                successToast.style.opacity = '0';
+                setTimeout(() => {
+                    document.body.removeChild(successToast);
+                }, 300);
+            }, 3000);
+        }
+        
+
+        // 计时器功能
+        function startTimer() {
+            startTime = Date.now();
+            updateTimer();
+            timerInterval = setInterval(updateTimer, 1000);
+        }
+
+        function stopTimer() {
+            clearInterval(timerInterval);
+        }
+
+        function updateTimer() {
+            const elapsedTime = Date.now() - startTime;
+            const seconds = Math.floor(elapsedTime / 1000) % 60;
+            const minutes = Math.floor(elapsedTime / (1000 * 60)) % 60;
+            const hours = Math.floor(elapsedTime / (1000 * 60 * 60));
+
+            timer.textContent = `${padNumber(hours)}:${padNumber(minutes)}:${padNumber(seconds)}`;
+        }
+
+        function padNumber(number) {
+            return number.toString().padStart(2, '0');
+        }
+    </script>
+</body>
+</html>

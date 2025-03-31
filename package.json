@@ -1,0 +1,25 @@
+{
+  "name": "screen-recorder",
+  "version": "1.0.0",
+  "description": "A desktop screen recorder application",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^25.3.1",
+    "electron-builder": "^24.6.3"
+  },
+  "dependencies": {
+    "@electron/remote": "^2.0.10"
+  },
+  "build": {
+    "appId": "com.screenrecorder.app",
+    "win": {
+      "target": "nsis"
+    }
+  }
+}
