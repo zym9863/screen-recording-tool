@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, screen } = require('electron');
+const { app, BrowserWindow } = require('electron');
 const path = require('path');
 const { initialize, enable } = require('@electron/remote/main');
 const electron = require('electron');
@@ -6,7 +6,6 @@ const electron = require('electron');
 initialize();
 
 let mainWindow;
-let regionSelectWindow;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -41,61 +40,9 @@ function createWindow() {
   mainWindow.loadFile('index.html');
 }
 
-// 创建区域选择窗口
-function createRegionSelectWindow() {
-  const primaryDisplay = screen.getPrimaryDisplay();
-  const { width, height } = primaryDisplay.workAreaSize;
+// 自定义区域录制功能已移除
 
-  regionSelectWindow = new BrowserWindow({
-    width: width,
-    height: height,
-    x: 0,
-    y: 0,
-    transparent: true,
-    frame: false,
-    fullscreen: true,
-    alwaysOnTop: true,
-    skipTaskbar: true,
-    webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false,
-      enableRemoteModule: true
-    }
-  });
-
-  enable(regionSelectWindow.webContents);
-  regionSelectWindow.loadFile('region-select.html');
-  
-  // 区域选择窗口关闭时的处理
-  regionSelectWindow.on('closed', () => {
-    regionSelectWindow = null;
-  });
-
-  return regionSelectWindow;
-}
-
-// 监听IPC消息
-ipcMain.on('start-region-select', () => {
-  if (!regionSelectWindow) {
-    createRegionSelectWindow();
-  }
-});
-
-ipcMain.on('region-selected', (event, region) => {
-  if (mainWindow) {
-    mainWindow.webContents.send('region-data', region);
-  }
-  
-  if (regionSelectWindow) {
-    regionSelectWindow.close();
-  }
-});
-
-ipcMain.on('cancel-region-select', () => {
-  if (regionSelectWindow) {
-    regionSelectWindow.close();
-  }
-});
+// 自定义区域录制功能相关的IPC监听已移除
 
 app.whenReady().then(() => {
   createWindow();
