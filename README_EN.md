@@ -9,7 +9,7 @@ A desktop screen recording application based on Electron, providing a simple and
 - **Multiple Recording Modes**: Support for recording the entire screen or a single window
 - **Video Cropping**: Support for cropping the recorded video area
 - **Real-time Preview**: Immediately preview the recorded content after recording
-- **Local Saving**: Save the recorded content as MP4 or WebM video files
+- **Local Saving**: Save the recorded content as MP4 or WebM video files, optimized MP4 files can be played normally on most mobile devices
 - **Recording Timer**: Display the current recording duration
 - **High DPI Support**: Adapt to high-resolution screens, solving coordinate inaccuracy issues on high DPI screens
 - **Modern Interface**: Clean and beautiful UI design providing a smooth user experience

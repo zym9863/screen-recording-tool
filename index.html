@@ -427,28 +427,124 @@
             });
 
             if (filePath) {
-                // 使用fs模块直接保存文件，而不是通过浏览器下载
-                const fs = require('fs');
-                const reader = new FileReader();
+                // 显示处理中提示
+                const processingToast = document.createElement('div');
+                processingToast.style.cssText = `
+                    position: fixed;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    background-color: rgba(0, 0, 0, 0.8);
+                    color: white;
+                    padding: 20px 30px;
+                    border-radius: var(--border-radius);
+                    box-shadow: var(--shadow-md);
+                    font-weight: 500;
+                    z-index: 1001;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    gap: 12px;
+                `;
+                processingToast.innerHTML = `
+                    <div>正在处理视频，请稍候...</div>
+                    <div style="font-size: 12px; color: #aaa;">正在优化视频以确保在移动设备上兼容</div>
+                `;
+                document.body.appendChild(processingToast);
                 
-                reader.onload = () => {
-                    const buffer = Buffer.from(reader.result);
-                    fs.writeFile(filePath, buffer, (err) => {
-                        if (err) {
-                            console.error('保存文件失败:', err);
-                            alert('保存文件失败: ' + err.message);
-                        } else {
-                            console.log('文件已保存到:', filePath);
-                        }
-                    });
-                };
-                
-                reader.onerror = (error) => {
-                    console.error('读取文件失败:', error);
-                    alert('读取文件失败: ' + error.message);
-                };
-                
-                reader.readAsArrayBuffer(downloadBtn.blob);
+                try {
+                    // 使用fs模块保存临时文件
+                    const fs = require('fs');
+                    const path = require('path');
+                    const os = require('os');
+                    const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
+                    const ffmpeg = require('fluent-ffmpeg');
+                    
+                    // 设置ffmpeg路径
+                    ffmpeg.setFfmpegPath(ffmpegPath);
+                    
+                    // 创建临时文件路径
+                    const tempDir = os.tmpdir();
+                    const tempInputPath = path.join(tempDir, `temp-input-${Date.now()}.webm`);
+                    
+                    // 将blob写入临时文件
+                    const reader = new FileReader();
+                    
+                    reader.onload = () => {
+                        const buffer = Buffer.from(reader.result);
+                        
+                        // 写入临时输入文件
+                        fs.writeFile(tempInputPath, buffer, async (err) => {
+                            if (err) {
+                                document.body.removeChild(processingToast);
+                                console.error('保存临时文件失败:', err);
+                                showErrorToast('保存文件失败: ' + err.message);
+                                return;
+                            }
+                            
+                            try {
+                                // 使用ffmpeg转码为手机兼容的MP4格式
+                                await new Promise((resolve, reject) => {
+                                    ffmpeg(tempInputPath)
+                                        .outputOptions([
+                                            '-c:v libx264',     // 使用H.264编码器
+                                            '-profile:v baseline', // 使用基本配置文件，提高兼容性
+                                            '-level 3.0',      // 设置级别，提高兼容性
+                                            '-pix_fmt yuv420p', // 使用yuv420p像素格式，几乎所有设备都支持
+                                            '-movflags +faststart', // 优化MP4文件结构，使其可以在下载完成前开始播放
+                                            '-c:a aac',        // 使用AAC音频编码
+                                            '-b:a 128k',       // 音频比特率
+                                            '-ar 44100'        // 音频采样率
+                                        ])
+                                        .save(filePath)
+                                        .on('end', () => {
+                                            console.log('视频转码完成');
+                                            resolve();
+                                        })
+                                        .on('error', (err) => {
+                                            console.error('视频转码失败:', err);
+                                            reject(err);
+                                        });
+                                });
+                                
+                                // 删除临时文件
+                                fs.unlink(tempInputPath, (err) => {
+                                    if (err) console.error('删除临时文件失败:', err);
+                                });
+                                
+                                document.body.removeChild(processingToast);
+                                showSuccessToast('视频已保存，已优化以兼容移动设备');
+                                
+                            } catch (error) {
+                                document.body.removeChild(processingToast);
+                                console.error('视频处理失败:', error);
+                                showErrorToast('视频处理失败: ' + error.message);
+                                
+                                // 如果转码失败，尝试直接保存原始文件
+                                fs.writeFile(filePath, buffer, (err) => {
+                                    if (err) {
+                                        console.error('保存原始文件失败:', err);
+                                    } else {
+                                        showSuccessToast('已保存原始视频文件');
+                                    }
+                                });
+                            }
+                        });
+                    };
+                    
+                    reader.onerror = (error) => {
+                        document.body.removeChild(processingToast);
+                        console.error('读取文件失败:', error);
+                        showErrorToast('读取文件失败: ' + error.message);
+                    };
+                    
+                    reader.readAsArrayBuffer(downloadBtn.blob);
+                    
+                } catch (error) {
+                    document.body.removeChild(processingToast);
+                    console.error('处理视频时发生错误:', error);
+                    showErrorToast('处理视频时发生错误: ' + error.message);
+                }
             }
         });
 
@@ -558,10 +654,10 @@
 
         // 处理媒体流
         function handleStream(stream) {
-            // 使用MP4格式的MIME类型
+            // 使用WebM格式的MIME类型，这样可以更好地支持后续转码
             const options = { 
-        mimeType: 'video/mp4;codecs=avc1.42E01E',
-        videoBitsPerSecond: 8000000 // 8Mbps
+        mimeType: 'video/webm;codecs=vp9',
+        videoBitsPerSecond: 5000000 // 5Mbps，更好的兼容性
     };
             
             // 检查浏览器是否支持指定的MIME类型
@@ -649,7 +745,8 @@
 
         // 处理录制停止
         function handleStop() {
-            const blob = new Blob(recordedChunks, { type: 'video/mp4' });
+            // 使用WebM格式作为中间格式，这样可以更好地支持后续转码
+            const blob = new Blob(recordedChunks, { type: 'video/webm' });
             const url = URL.createObjectURL(blob);
             
             // 设置视频源并添加加载事件
