@@ -460,8 +460,14 @@
                     const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
                     const ffmpeg = require('fluent-ffmpeg');
                     
-                    // 设置ffmpeg路径
-                    ffmpeg.setFfmpegPath(ffmpegPath);
+                    // 设置ffmpeg路径，处理Electron打包后的路径问题
+                    let ffmpegPathFixed = ffmpegPath;
+                    // 检查是否在打包环境中（app.asar），如果是则修正路径
+                    if (ffmpegPathFixed.includes('app.asar')) {
+                        ffmpegPathFixed = ffmpegPathFixed.replace('app.asar', 'app.asar.unpacked');
+                        console.log('已修正ffmpeg路径:', ffmpegPathFixed);
+                    }
+                    ffmpeg.setFfmpegPath(ffmpegPathFixed);
                     
                     // 创建临时文件路径
                     const tempDir = os.tmpdir();
