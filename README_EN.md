@@ -7,11 +7,12 @@ A desktop screen recording application based on Electron, providing a simple and
 ## Features
 
 - **Multiple Recording Modes**: Support for recording the entire screen or a single window
+- **Resolution Selection**: Offers multiple recording resolution options (e.g., original, 1080p, 720p) to balance clarity and performance
 - **Video Cropping**: Support for cropping the recorded video area
 - **Real-time Preview**: Immediately preview the recorded content after recording
-- **Local Saving**: Save the recorded content as MP4 or WebM video files, optimized MP4 files can be played normally on most mobile devices
+- **Local Saving**: Save the recorded content as MP4 format, using `ffmpeg` for H.264 encoding and optimization to improve mobile device compatibility
+- **Chunked Recording**: Uses a chunked recording mechanism to improve stability for long recordings, automatically merging chunks at the end
 - **Recording Timer**: Display the current recording duration
-- **High DPI Support**: Adapt to high-resolution screens, solving coordinate inaccuracy issues on high DPI screens
 - **Modern Interface**: Clean and beautiful UI design providing a smooth user experience
 
 ## Installation Steps
@@ -72,4 +73,6 @@ After building, you can find the installation package for your platform in the `
 - Electron: Cross-platform desktop application framework
 - HTML/CSS/JavaScript: Frontend interface
 - MediaRecorder API: Implement screen recording functionality
-- Electron Remote: Inter-process communication
+- @electron/remote: Inter-process communication between main and renderer processes
+- Node.js `fs`: File system operations
+- `@ffmpeg-installer/ffmpeg` & `fluent-ffmpeg`: Used for video processing (cropping and encoding optimization)
