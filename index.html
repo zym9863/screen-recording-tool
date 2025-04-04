@@ -318,6 +318,49 @@
             padding: 6px 12px;
             border-radius: 4px;
         }
+        
+        .resolution-selector {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+        
+        .resolution-selector label {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--bg-dark);
+        }
+        
+        .resolution-selector select {
+            padding: 8px 12px;
+            border-radius: var(--border-radius);
+            border: 1px solid #dee2e6;
+            background-color: white;
+            font-size: 14px;
+            color: var(--bg-dark);
+            cursor: pointer;
+            transition: var(--transition-normal);
+            outline: none;
+        }
+        
+        .resolution-selector select:hover {
+            border-color: var(--primary-color);
+        }
+        
+        .resolution-selector select:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(58, 123, 255, 0.2);
+        }
+        
+        .resolution-tip {
+            font-size: 12px;
+            color: #8a94a6;
+            text-align: center;
+            margin-top: 4px;
+        }
     </style>
 </head>
 <body>
@@ -343,6 +386,18 @@
                 </svg>
                 下载录像
             </button>
+        </div>
+        
+        <div class="resolution-selector">
+            <label for="resolutionSelect">录制分辨率：</label>
+            <select id="resolutionSelect">
+                <option value="original">原始分辨率</option>
+                <option value="1080p">1080p (1920×1080)</option>
+                <option value="720p" selected>720p (1280×720)</option>
+                <option value="480p">480p (854×480)</option>
+                <option value="360p">360p (640×360)</option>
+            </select>
+            <div class="resolution-tip">降低分辨率可以减少卡顿，提高录制流畅度</div>
         </div>
         
         <div class="preview-area">
@@ -395,6 +450,10 @@
         let timerInterval;
         let selectedSource = null;
         let sourceSelectWindow = null;
+        let recordingBlocks = []; // 存储所有录制块
+        let currentBlockIndex = 0; // 当前录制块索引
+        let blockInterval; // 分块录制的定时器
+        const BLOCK_DURATION = 30000; // 每个录制块的时长（毫秒），可以根据需要调整
 
         // 获取DOM元素
         const recordBtn = document.getElementById('recordBtn');
@@ -627,18 +686,56 @@
         // 自定义区域录制功能已移除
         
         // 这里不需要额外的代码
+        // 获取分辨率设置
+        function getResolutionConstraints() {
+            const resolutionSelect = document.getElementById('resolutionSelect');
+            const selectedResolution = resolutionSelect.value;
+            
+            // 基本约束条件
+            const constraints = {
+                mandatory: {
+                    chromeMediaSource: 'desktop',
+                    chromeMediaSourceId: selectedSource.id
+                }
+            };
+            
+            // 根据选择的分辨率添加约束
+            switch (selectedResolution) {
+                case '1080p':
+                    constraints.mandatory.maxWidth = 1920;
+                    constraints.mandatory.maxHeight = 1080;
+                    break;
+                case '720p':
+                    constraints.mandatory.maxWidth = 1280;
+                    constraints.mandatory.maxHeight = 720;
+                    break;
+                case '480p':
+                    constraints.mandatory.maxWidth = 854;
+                    constraints.mandatory.maxHeight = 480;
+                    break;
+                case '360p':
+                    constraints.mandatory.maxWidth = 640;
+                    constraints.mandatory.maxHeight = 360;
+                    break;
+                case 'original':
+                default:
+                    // 不添加分辨率限制，使用原始分辨率
+                    break;
+            }
+            
+            return constraints;
+        }
+        
         // 开始录制
         async function startRecording() {
             if (selectedSource) {
                 try {
+                    // 获取分辨率约束
+                    const videoConstraints = getResolutionConstraints();
+                    
                     const stream = await navigator.mediaDevices.getUserMedia({
                         audio: false,
-                        video: {
-                            mandatory: {
-                                chromeMediaSource: 'desktop',
-                                chromeMediaSourceId: selectedSource.id
-                            }
-                        }
+                        video: videoConstraints
                     });
 
                     handleStream(stream);
@@ -660,26 +757,57 @@
 
         // 处理媒体流
         function handleStream(stream) {
+            // 根据选择的分辨率调整比特率
+            const resolutionSelect = document.getElementById('resolutionSelect');
+            const selectedResolution = resolutionSelect.value;
+            
+            // 根据分辨率设置不同的比特率
+            let videoBitsPerSecond = 5000000; // 默认5Mbps
+            
+            switch (selectedResolution) {
+                case '1080p':
+                    videoBitsPerSecond = 5000000; // 5Mbps
+                    break;
+                case '720p':
+                    videoBitsPerSecond = 2500000; // 2.5Mbps
+                    break;
+                case '480p':
+                    videoBitsPerSecond = 1000000; // 1Mbps
+                    break;
+                case '360p':
+                    videoBitsPerSecond = 750000; // 0.75Mbps
+                    break;
+                default:
+                    videoBitsPerSecond = 5000000; // 默认5Mbps
+            }
+            
             // 使用WebM格式的MIME类型，这样可以更好地支持后续转码
             const options = { 
-        mimeType: 'video/webm;codecs=vp9',
-        videoBitsPerSecond: 5000000 // 5Mbps，更好的兼容性
-    };
+                mimeType: 'video/webm;codecs=h264',
+                videoBitsPerSecond: videoBitsPerSecond
+            };
+            
+            console.log(`使用分辨率: ${selectedResolution}, 比特率: ${videoBitsPerSecond/1000000}Mbps`);
             
             // 检查浏览器是否支持指定的MIME类型
             if (MediaRecorder.isTypeSupported(options.mimeType)) {
                 mediaRecorder = new MediaRecorder(stream, options);
             } else {
-                // 如果不支持H.265编码，则尝试使用默认编码
-                console.warn('H.265编码不受支持，使用默认编码');
+                // 如果不支持H.264编码，则尝试使用默认编码
+                console.warn('H.264编码不受支持，使用默认编码');
                 mediaRecorder = new MediaRecorder(stream);
             }
             
             mediaRecorder.ondataavailable = handleDataAvailable;
-            mediaRecorder.onstop = handleStop;
+            mediaRecorder.onstop = handleBlockStop;
 
+            // 重置录制块数组
             recordedChunks = [];
-            mediaRecorder.start();
+            recordingBlocks = [];
+            currentBlockIndex = 0;
+            
+            // 开始第一个录制块
+            startRecordingBlock(stream, options);
             isRecording = true;
             
             // 更新录制按钮状态和样式
@@ -714,11 +842,118 @@
                 recordedChunks.push(e.data);
             }
         }
+        
+        // 开始新的录制块
+        function startRecordingBlock(stream, options) {
+            // 如果已经有录制器在运行，先停止它
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+            }
+            
+            // 获取最新的分辨率设置的比特率
+            const resolutionSelect = document.getElementById('resolutionSelect');
+            const selectedResolution = resolutionSelect.value;
+            
+            // 更新比特率设置
+            let videoBitsPerSecond = 5000000; // 默认5Mbps
+            
+            switch (selectedResolution) {
+                case '1080p':
+                    videoBitsPerSecond = 5000000; // 5Mbps
+                    break;
+                case '720p':
+                    videoBitsPerSecond = 2500000; // 2.5Mbps
+                    break;
+                case '480p':
+                    videoBitsPerSecond = 1000000; // 1Mbps
+                    break;
+                case '360p':
+                    videoBitsPerSecond = 750000; // 0.75Mbps
+                    break;
+                default:
+                    videoBitsPerSecond = 5000000; // 默认5Mbps
+            }
+            
+            // 更新选项
+            options.videoBitsPerSecond = videoBitsPerSecond;
+            
+            // 创建新的录制器
+            if (MediaRecorder.isTypeSupported(options.mimeType)) {
+                mediaRecorder = new MediaRecorder(stream, options);
+            } else {
+                console.warn('H.264编码不受支持，使用默认编码');
+                mediaRecorder = new MediaRecorder(stream);
+            }
+            
+            // 设置事件处理器
+            mediaRecorder.ondataavailable = handleDataAvailable;
+            mediaRecorder.onstop = handleBlockStop;
+            
+            // 重置当前块的数据
+            recordedChunks = [];
+            
+            // 开始录制
+            mediaRecorder.start();
+            console.log(`开始录制块 #${currentBlockIndex + 1}`);
+            
+            // 设置定时器，在指定时间后停止当前块并开始新块
+            // 只有在录制中才设置定时器
+            if (isRecording) {
+                clearTimeout(blockInterval); // 清除之前的定时器
+                blockInterval = setTimeout(() => {
+                    if (isRecording) { // 确保仍在录制中
+                        console.log(`录制块 #${currentBlockIndex + 1} 达到时间限制，开始新块`);
+                        // 保存当前块并开始新块
+                        mediaRecorder.stop();
+                    }
+                }, BLOCK_DURATION);
+            }
+        }
+        
+        // 处理单个录制块停止
+        function handleBlockStop() {
+            // 如果有数据，创建一个Blob并保存到录制块数组
+            if (recordedChunks.length > 0) {
+                const blockBlob = new Blob(recordedChunks, { type: 'video/webm' });
+                recordingBlocks.push(blockBlob);
+                console.log(`录制块 #${currentBlockIndex + 1} 已完成，大小: ${(blockBlob.size / (1024 * 1024)).toFixed(2)}MB`);
+                currentBlockIndex++;
+            }
+            
+            // 如果仍在录制中，开始新的录制块
+            if (isRecording) {
+                // 获取当前流
+                const stream = mediaRecorder.stream;
+                const options = { 
+                    mimeType: 'video/webm;codecs=h264',
+                    videoBitsPerSecond: 5000000
+                };
+                
+                // 开始新的录制块
+                startRecordingBlock(stream, options);
+            } else {
+                // 如果录制已停止，处理所有录制块
+                handleFinalStop();
+            }
+        }
 
         // 停止录制
         function stopRecording() {
-            mediaRecorder.stop();
+            // 标记录制状态为停止
             isRecording = false;
+            
+            // 清除分块定时器
+            clearTimeout(blockInterval);
+            
+            // 停止当前录制块
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+                // handleBlockStop 会在 mediaRecorder.stop() 后被调用
+                // 它会检测到 isRecording 为 false，然后调用 handleFinalStop
+            } else {
+                // 如果没有正在录制的块，直接处理所有块
+                handleFinalStop();
+            }
             
             // 恢复录制按钮状态和样式
             recordBtn.innerHTML = `
@@ -745,48 +980,118 @@
             }, 300);
             
             stopTimer();
-            
-            // 自定义区域录制功能已移除
         }
 
-        // 处理录制停止
-        function handleStop() {
-            // 使用WebM格式作为中间格式，这样可以更好地支持后续转码
-            const blob = new Blob(recordedChunks, { type: 'video/webm' });
-            const url = URL.createObjectURL(blob);
+        // 处理最终录制停止，合并所有录制块
+        function handleFinalStop() {
+            console.log(`录制结束，合并 ${recordingBlocks.length} 个录制块`);
             
-            // 设置视频源并添加加载事件
-            preview.src = url;
-            preview.onloadeddata = () => {
-                // 添加淡入效果
-                preview.style.opacity = '0';
-                preview.style.display = 'block';
-                placeholder.style.opacity = '1';
-                placeholder.style.display = 'none';
-                
-                // 触发重排后淡入
-                setTimeout(() => {
-                    preview.style.transition = 'opacity 0.5s cubic-bezier(0.2, 0, 0.1, 1)';
-                    preview.style.opacity = '1';
-                }, 50);
-            };
+            // 如果没有录制块，直接返回
+            if (recordingBlocks.length === 0) {
+                console.warn('没有录制数据');
+                showErrorToast('没有录制数据');
+                return;
+            }
             
-            // 启用下载按钮和裁剪按钮并添加动画效果
-            downloadBtn.disabled = false;
-            cropBtn.disabled = false;
-            downloadBtn.style.animation = 'pulse-scale 0.5s cubic-bezier(0.2, 0, 0.1, 1)';
-            cropBtn.style.animation = 'pulse-scale 0.5s cubic-bezier(0.2, 0, 0.1, 1)';
-            setTimeout(() => {
-                downloadBtn.style.animation = '';
-                cropBtn.style.animation = '';
-            }, 500);
+            // 显示处理中提示
+            const processingToast = document.createElement('div');
+            processingToast.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background-color: rgba(0, 0, 0, 0.8);
+                color: white;
+                padding: 20px 30px;
+                border-radius: var(--border-radius);
+                box-shadow: var(--shadow-md);
+                font-weight: 500;
+                z-index: 1001;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 12px;
+            `;
+            processingToast.innerHTML = `
+                <div>正在处理视频，请稍候...</div>
+                <div style="font-size: 12px; color: #aaa;">正在合并视频块，这可能需要一点时间</div>
+            `;
+            document.body.appendChild(processingToast);
+            
+            // 使用setTimeout让UI有时间更新
+            setTimeout(async () => {
+                try {
+                    // 合并所有录制块
+                    const finalBlob = await mergeBlobs(recordingBlocks);
+                    const url = URL.createObjectURL(finalBlob);
+                    
+                    // 设置视频源并添加加载事件
+                    preview.src = url;
+                    preview.onloadeddata = () => {
+                        // 添加淡入效果
+                        preview.style.opacity = '0';
+                        preview.style.display = 'block';
+                        placeholder.style.opacity = '1';
+                        placeholder.style.display = 'none';
+                        
+                        // 触发重排后淡入
+                        setTimeout(() => {
+                            preview.style.transition = 'opacity 0.5s cubic-bezier(0.2, 0, 0.1, 1)';
+                            preview.style.opacity = '1';
+                        }, 50);
+                    };
+                    
+                    // 启用下载按钮和裁剪按钮并添加动画效果
+                    downloadBtn.disabled = false;
+                    cropBtn.disabled = false;
+                    downloadBtn.style.animation = 'pulse-scale 0.5s cubic-bezier(0.2, 0, 0.1, 1)';
+                    cropBtn.style.animation = 'pulse-scale 0.5s cubic-bezier(0.2, 0, 0.1, 1)';
+                    setTimeout(() => {
+                        downloadBtn.style.animation = '';
+                        cropBtn.style.animation = '';
+                    }, 500);
 
-            // 更新下载按钮的blob数据
-            downloadBtn.blob = blob;
-            // 保存原始视频的blob数据，用于裁剪
-            window.originalVideoBlob = blob;
+                    // 更新下载按钮的blob数据
+                    downloadBtn.blob = finalBlob;
+                    // 保存原始视频的blob数据，用于裁剪
+                    window.originalVideoBlob = finalBlob;
+                    
+                    // 移除处理中提示
+                    document.body.removeChild(processingToast);
+                    
+                    // 显示成功提示
+                    showSuccessToast('录制完成，可以下载视频');
+                    
+                    console.log(`视频合并完成，总大小: ${(finalBlob.size / (1024 * 1024)).toFixed(2)}MB`);
+                } catch (error) {
+                    console.error('合并视频块失败:', error);
+                    document.body.removeChild(processingToast);
+                    showErrorToast('处理视频失败: ' + error.message);
+                }
+            }, 100);
+        }
+        
+        // 合并多个Blob对象
+        async function mergeBlobs(blobs) {
+            if (blobs.length === 0) return new Blob([], { type: 'video/webm' });
+            if (blobs.length === 1) return blobs[0];
             
-            // 显示成功提示
+            // 创建一个新的数组来存储所有块的数据
+            const allChunks = [];
+            
+            // 读取每个Blob的数据
+            for (let i = 0; i < blobs.length; i++) {
+                const blob = blobs[i];
+                const buffer = await blob.arrayBuffer();
+                allChunks.push(new Uint8Array(buffer));
+            }
+            
+            // 合并所有数据
+            return new Blob(allChunks, { type: 'video/webm' });
+        }
+        
+        // 显示成功提示
+        function showSuccessToast(message) {
             const successToast = document.createElement('div');
             successToast.style.cssText = `
                 position: fixed;
@@ -810,7 +1115,7 @@
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M20 6L9 17l-5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
-                录制完成，可以下载视频
+                ${message}
             `;
             document.body.appendChild(successToast);
             
@@ -825,6 +1130,49 @@
                     document.body.removeChild(successToast);
                 }, 300);
             }, 3000);
+        }
+        
+        // 显示错误提示
+        function showErrorToast(message) {
+            const errorToast = document.createElement('div');
+            errorToast.style.cssText = `
+                position: fixed;
+                bottom: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                background-color: var(--error-color);
+                color: white;
+                padding: 12px 20px;
+                border-radius: var(--border-radius);
+                box-shadow: var(--shadow-md);
+                font-weight: 500;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                z-index: 1000;
+                opacity: 0;
+                transition: opacity 0.3s cubic-bezier(0.2, 0, 0.1, 1);
+            `;
+            errorToast.innerHTML = `
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 8v4M12 16h.01" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <circle cx="12" cy="12" r="10" stroke="white" stroke-width="2"/>
+                </svg>
+                ${message}
+            `;
+            document.body.appendChild(errorToast);
+            
+            // 显示提示并设置自动消失
+            setTimeout(() => {
+                errorToast.style.opacity = '1';
+            }, 100);
+            
+            setTimeout(() => {
+                errorToast.style.opacity = '0';
+                setTimeout(() => {
+                    document.body.removeChild(errorToast);
+                }, 300);
+            }, 5000); // 错误提示显示时间更长
         }
         
 
@@ -901,127 +1249,218 @@
             const relativeHeight = cropAreaRect.height / videoRect.height;
             
             try {
-                // 显示加载指示器
+                // 显示加载指示器，添加进度条
                 const loadingIndicator = document.createElement('div');
                 loadingIndicator.style.cssText = `
-                    position: absolute;
-                    top: 50%;
-                    left: 50%;
-                    transform: translate(-50%, -50%);
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
                     background-color: rgba(0, 0, 0, 0.7);
                     color: white;
-                    padding: 16px 24px;
-                    border-radius: var(--border-radius);
-                    font-weight: 500;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
                     z-index: 1001;
                 `;
-                loadingIndicator.textContent = '正在处理视频...';
+                
+                const progressContainer = document.createElement('div');
+                progressContainer.style.cssText = `
+                    width: 300px;
+                    height: 8px;
+                    background-color: rgba(255, 255, 255, 0.2);
+                    border-radius: 4px;
+                    margin-top: 16px;
+                    overflow: hidden;
+                    position: relative;
+                `;
+                
+                const progressBar = document.createElement('div');
+                progressBar.style.cssText = `
+                    width: 0%;
+                    height: 100%;
+                    background-color: var(--primary-color);
+                    border-radius: 4px;
+                    transition: width 0.3s ease;
+                `;
+                
+                const progressText = document.createElement('div');
+                progressText.style.cssText = `
+                    margin-top: 8px;
+                    font-size: 14px;
+                    color: rgba(255, 255, 255, 0.8);
+                `;
+                progressText.textContent = '准备处理视频...';
+                
+                progressContainer.appendChild(progressBar);
+                loadingIndicator.innerHTML = `<div style="font-weight: 500; font-size: 18px; margin-bottom: 8px;">正在处理视频</div>`;
+                loadingIndicator.appendChild(progressContainer);
+                loadingIndicator.appendChild(progressText);
                 document.body.appendChild(loadingIndicator);
                 
-                // 创建一个离屏视频元素来处理裁剪
-                const offscreenVideo = document.createElement('video');
-                offscreenVideo.src = preview.src;
-                offscreenVideo.muted = true;
-                
-                // 等待视频加载
-                await new Promise((resolve) => {
-                    offscreenVideo.onloadedmetadata = () => {
-                        offscreenVideo.currentTime = 0;
-                        resolve();
-                    };
-                    offscreenVideo.onerror = () => {
-                        resolve(); // 即使出错也继续执行
-                        console.error('视频加载失败:', offscreenVideo.error);
-                    };
-                });
-                
-                // 创建一个临时的canvas元素
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-                
-                // 设置canvas的尺寸为裁剪后的尺寸
-                const targetWidth = Math.round(preview.videoWidth * relativeWidth);
-                const targetHeight = Math.round(preview.videoHeight * relativeHeight);
-                canvas.width = targetWidth;
-                canvas.height = targetHeight;
-                
-                // 计算裁剪区域在原始视频中的位置
-                const cropX = Math.round(preview.videoWidth * relativeLeft);
-                const cropY = Math.round(preview.videoHeight * relativeTop);
-                
-                // 创建MediaRecorder来录制裁剪后的视频
-                const stream = canvas.captureStream();
-                const mediaRecorder = new MediaRecorder(stream, {
-                    mimeType: 'video/webm;codecs=avc1.42E01E'
-                });
-                
-                const chunks = [];
-                mediaRecorder.ondataavailable = (e) => {
-                    if (e.data.size > 0) {
-                        chunks.push(e.data);
+                // 使用 FFmpeg 进行视频裁剪，这样可以更高效地处理
+                if (window.originalVideoBlob) {
+                    // 创建临时文件路径
+                    const fs = require('fs');
+                    const path = require('path');
+                    const os = require('os');
+                    const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
+                    const ffmpeg = require('fluent-ffmpeg');
+                    
+                    // 设置ffmpeg路径
+                    let ffmpegPathFixed = ffmpegPath;
+                    if (ffmpegPathFixed.includes('app.asar')) {
+                        ffmpegPathFixed = ffmpegPathFixed.replace('app.asar', 'app.asar.unpacked');
                     }
-                };
-                
-                mediaRecorder.onstop = () => {
-                    const blob = new Blob(chunks, { type: 'video/webm' });
-                    const url = URL.createObjectURL(blob);
+                    ffmpeg.setFfmpegPath(ffmpegPathFixed);
                     
-                    // 更新预览视频
-                    preview.src = url;
+                    // 创建临时文件路径
+                    const tempDir = os.tmpdir();
+                    const tempInputPath = path.join(tempDir, `temp-input-${Date.now()}.webm`);
+                    const tempOutputPath = path.join(tempDir, `temp-output-${Date.now()}.mp4`);
                     
-                    // 确保视频加载完成后显示
-                    preview.onloadeddata = () => {
-                        // 移除加载指示器
-                        document.body.removeChild(loadingIndicator);
+                    // 将blob写入临时文件
+                    const reader = new FileReader();
+                    
+                    reader.onload = () => {
+                        const buffer = Buffer.from(reader.result);
                         
-                        // 显示视频
-                        preview.style.display = 'block';
-                        placeholder.style.display = 'none';
-                        
-                        // 更新下载按钮的blob数据
-                        downloadBtn.blob = blob;
-                        
-                        // 隐藏裁剪容器
-                        cropContainer.style.display = 'none';
-                        
-                        // 显示成功提示
-                        showSuccessToast('视频裁剪成功');
+                        // 写入临时输入文件
+                        fs.writeFile(tempInputPath, buffer, async (err) => {
+                            if (err) {
+                                document.body.removeChild(loadingIndicator);
+                                console.error('保存临时文件失败:', err);
+                                showErrorToast('裁剪失败: ' + err.message);
+                                return;
+                            }
+                            
+                            try {
+                                // 计算裁剪参数
+                                const videoWidth = preview.videoWidth;
+                                const videoHeight = preview.videoHeight;
+                                
+                                const cropX = Math.round(videoWidth * relativeLeft);
+                                const cropY = Math.round(videoHeight * relativeTop);
+                                const cropWidth = Math.round(videoWidth * relativeWidth);
+                                const cropHeight = Math.round(videoHeight * relativeHeight);
+                                
+                                // 使用ffmpeg裁剪视频
+                                await new Promise((resolve, reject) => {
+                                    let lastProgress = 0;
+                                    
+                                    ffmpeg(tempInputPath)
+                                        .outputOptions([
+                                            `-vf crop=${cropWidth}:${cropHeight}:${cropX}:${cropY}`,
+                                            '-c:v libx264',
+                                            '-preset ultrafast', // 使用最快的编码预设
+                                            '-crf 23', // 平衡质量和文件大小
+                                            '-pix_fmt yuv420p',
+                                            '-movflags +faststart'
+                                        ])
+                                        .output(tempOutputPath)
+                                        .on('progress', (progress) => {
+                                            // 更新进度条，避免过于频繁的更新
+                                            if (progress.percent && progress.percent > lastProgress + 1) {
+                                                lastProgress = progress.percent;
+                                                progressBar.style.width = `${Math.min(95, progress.percent)}%`;
+                                                progressText.textContent = `处理中: ${Math.round(progress.percent)}%`;
+                                            }
+                                        })
+                                        .on('end', () => {
+                                            progressBar.style.width = '100%';
+                                            progressText.textContent = '处理完成，准备播放...';
+                                            resolve();
+                                        })
+                                        .on('error', (err) => {
+                                            console.error('视频裁剪失败:', err);
+                                            reject(err);
+                                        })
+                                        .run();
+                                });
+                                
+                                // 读取处理后的视频文件
+                                const outputBuffer = fs.readFileSync(tempOutputPath);
+                                const blob = new Blob([outputBuffer], { type: 'video/mp4' });
+                                const url = URL.createObjectURL(blob);
+                                
+                                // 更新预览视频
+                                preview.src = url;
+                                
+                                // 确保视频加载完成后显示
+                                preview.onloadeddata = () => {
+                                    // 移除加载指示器
+                                    document.body.removeChild(loadingIndicator);
+                                    
+                                    // 显示视频
+                                    preview.style.display = 'block';
+                                    placeholder.style.display = 'none';
+                                    
+                                    // 更新下载按钮的blob数据
+                                    downloadBtn.blob = blob;
+                                    
+                                    // 隐藏裁剪容器
+                                    cropContainer.style.display = 'none';
+                                    
+                                    // 显示成功提示
+                                    showSuccessToast('视频裁剪成功');
+                                };
+                                
+                                // 处理视频加载错误
+                                preview.onerror = () => {
+                                    document.body.removeChild(loadingIndicator);
+                                    showErrorToast('视频裁剪失败: 无法加载处理后的视频');
+                                    console.error('视频加载失败:', preview.error);
+                                    
+                                    // 恢复原始视频
+                                    if (window.originalVideoBlob) {
+                                        preview.src = URL.createObjectURL(window.originalVideoBlob);
+                                    }
+                                };
+                                
+                                // 清理临时文件
+                                try {
+                                    fs.unlinkSync(tempInputPath);
+                                    fs.unlinkSync(tempOutputPath);
+                                } catch (cleanupErr) {
+                                    console.warn('清理临时文件失败:', cleanupErr);
+                                }
+                                
+                            } catch (error) {
+                                document.body.removeChild(loadingIndicator);
+                                console.error('视频裁剪失败:', error);
+                                showErrorToast('视频裁剪失败: ' + error.message);
+                                
+                                // 恢复原始视频
+                                if (window.originalVideoBlob) {
+                                    preview.src = URL.createObjectURL(window.originalVideoBlob);
+                                }
+                                
+                                // 尝试清理临时文件
+                                try {
+                                    fs.unlinkSync(tempInputPath);
+                                    if (fs.existsSync(tempOutputPath)) {
+                                        fs.unlinkSync(tempOutputPath);
+                                    }
+                                } catch (cleanupErr) {
+                                    console.warn('清理临时文件失败:', cleanupErr);
+                                }
+                            }
+                        });
                     };
                     
-                    // 处理视频加载错误
-                    preview.onerror = () => {
+                    reader.onerror = (error) => {
                         document.body.removeChild(loadingIndicator);
-                        showErrorToast('视频裁剪失败: 无法加载处理后的视频');
-                        console.error('视频加载失败:', preview.error);
-                        
-                        // 恢复原始视频
-                        if (window.originalVideoBlob) {
-                            preview.src = URL.createObjectURL(window.originalVideoBlob);
-                        }
+                        console.error('读取文件失败:', error);
+                        showErrorToast('读取文件失败: ' + error.message);
                     };
-                };
-                
-                mediaRecorder.start();
-                
-                // 开始处理视频帧
-                const processFrame = () => {
-                    if (offscreenVideo.ended || offscreenVideo.paused) {
-                        mediaRecorder.stop();
-                        return;
-                    }
                     
-                    ctx.drawImage(
-                        offscreenVideo,
-                        cropX, cropY, targetWidth, targetHeight,
-                        0, 0, targetWidth, targetHeight
-                    );
-                    
-                    requestAnimationFrame(processFrame);
-                };
-                
-                // 开始播放视频并处理帧
-                offscreenVideo.play();
-                processFrame();
+                    reader.readAsArrayBuffer(window.originalVideoBlob);
+                } else {
+                    document.body.removeChild(loadingIndicator);
+                    showErrorToast('找不到原始视频数据');
+                }
                 
             } catch (error) {
                 console.error('视频裁剪失败:', error);
