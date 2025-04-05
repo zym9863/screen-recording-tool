@@ -8,7 +8,7 @@ A desktop screen recording application based on Electron, providing a simple and
 
 - **Multiple Recording Modes**: Support for recording the entire screen or a single window
 - **Resolution Selection**: Offers multiple recording resolution options (e.g., original, 1080p, 720p) to balance clarity and performance
-- **Video Cropping**: Support for cropping the recorded video area
+- **Video Cropping**: Support for cropping the recorded video area and trimming video timeline
 - **Real-time Preview**: Immediately preview the recorded content after recording
 - **Local Saving**: Save the recorded content as MP4 format, using `ffmpeg` for H.264 encoding and optimization to improve mobile device compatibility
 - **Chunked Recording**: Uses a chunked recording mechanism to improve stability for long recordings, automatically merging chunks at the end
@@ -60,7 +60,9 @@ After building, you can find the installation package for your platform in the `
 
 4. **Video Cropping**:
    - After recording, click the "Crop Video" button
-   - Select the video area you want to keep by dragging in the preview area
+   - Choose cropping method: "Area Crop" or "Time Trim"
+   - Area Crop: Select the video area you want to keep by dragging in the preview area
+   - Time Trim: Drag the start and end markers on the timeline to select the video segment you want to keep
    - Click "Apply Crop" to confirm or "Cancel Crop" to discard changes
 
 5. **Save the Recording**:

@@ -1,0 +1,130 @@
+/* 时间轴裁剪相关样式 */
+.time-trim-container {
+    display: none;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    padding: 15px;
+    border-radius: 0 0 var(--border-radius) var(--border-radius);
+}
+
+.time-slider-container {
+    position: relative;
+    height: 40px;
+    margin-bottom: 10px;
+}
+
+.time-slider-track {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 100%;
+    height: 6px;
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+}
+
+.time-slider-progress {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    background-color: var(--primary-color);
+    border-radius: 3px;
+}
+
+.time-slider-handle {
+    position: absolute;
+    top: 50%;
+    width: 16px;
+    height: 16px;
+    background-color: white;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    cursor: pointer;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
+    z-index: 2;
+}
+
+.time-slider-handle.start {
+    left: 0;
+}
+
+.time-slider-handle.end {
+    left: 100%;
+}
+
+.time-display {
+    display: flex;
+    justify-content: space-between;
+    color: white;
+    font-size: 12px;
+    margin-bottom: 15px;
+}
+
+.time-trim-controls {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+}
+
+.time-trim-btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: var(--transition-normal);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.apply-time-trim-btn {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.apply-time-trim-btn:hover {
+    background-color: #2a6ae9;
+}
+
+.cancel-time-trim-btn {
+    background-color: #6c757d;
+    color: white;
+}
+
+.cancel-time-trim-btn:hover {
+    background-color: #5a6268;
+}
+
+.trim-type-switch {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 15px;
+}
+
+.trim-type-option {
+    padding: 6px 12px;
+    background-color: rgba(255, 255, 255, 0.1);
+    color: white;
+    cursor: pointer;
+    font-size: 13px;
+    transition: var(--transition-normal);
+}
+
+.trim-type-option:first-child {
+    border-radius: var(--border-radius) 0 0 var(--border-radius);
+}
+
+.trim-type-option:last-child {
+    border-radius: 0 var(--border-radius) var(--border-radius) 0;
+}
+
+.trim-type-option.active {
+    background-color: var(--primary-color);
+}

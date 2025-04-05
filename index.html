@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>屏幕录制</title>
+    <link rel="stylesheet" href="time-trim.css">
     <style>
         * {
             margin: 0;
@@ -404,6 +405,10 @@
             <video id="preview" controls></video>
             <div id="placeholder">录制的视频将在这里显示</div>
             <div class="crop-container" id="cropContainer">
+                <div class="trim-type-switch">
+                    <div class="trim-type-option active" data-type="area">区域裁剪</div>
+                    <div class="trim-type-option" data-type="time">时间裁剪</div>
+                </div>
                 <div class="crop-area" id="cropArea">
                     <div class="resize-handle nw" id="nwHandle"></div>
                     <div class="resize-handle ne" id="neHandle"></div>
@@ -419,6 +424,40 @@
                     </button>
                     <button class="download-btn" id="cancelCropBtn">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M18 6L6 18M6 6l12 12" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        取消裁剪
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 时间轴裁剪容器 -->
+            <div class="time-trim-container" id="timeTrimContainer">
+                <div class="trim-type-switch">
+                    <div class="trim-type-option" data-type="area">区域裁剪</div>
+                    <div class="trim-type-option active" data-type="time">时间裁剪</div>
+                </div>
+                <div class="time-display">
+                    <span id="startTimeDisplay">00:00.00</span>
+                    <span id="totalTimeDisplay">00:00.00</span>
+                    <span id="endTimeDisplay">00:00.00</span>
+                </div>
+                <div class="time-slider-container">
+                    <div class="time-slider-track" id="timeSliderTrack">
+                        <div class="time-slider-progress" id="timeSliderProgress"></div>
+                    </div>
+                    <div class="time-slider-handle start" id="startTimeHandle"></div>
+                    <div class="time-slider-handle end" id="endTimeHandle"></div>
+                </div>
+                <div class="time-trim-controls">
+                    <button class="time-trim-btn apply-time-trim-btn" id="applyTimeTrimBtn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M20 6L9 17l-5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        应用裁剪
+                    </button>
+                    <button class="time-trim-btn cancel-time-trim-btn" id="cancelTimeTrimBtn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M18 6L6 18M6 6l12 12" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                         </svg>
                         取消裁剪
@@ -1211,24 +1250,93 @@
         
         // 裁剪按钮点击事件
         cropBtn.addEventListener('click', () => {
-            // 显示裁剪容器
-            cropContainer.style.display = 'block';
+            // 显示裁剪选择对话框
+            const cropTypeDialog = document.createElement('div');
+            cropTypeDialog.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0, 0, 0, 0.7);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 1002;
+            `;
             
-            // 获取视频的实际显示尺寸
-            const videoRect = preview.getBoundingClientRect();
-            const containerRect = cropContainer.getBoundingClientRect();
+            const dialogContent = document.createElement('div');
+            dialogContent.style.cssText = `
+                background-color: var(--bg-light);
+                border-radius: var(--border-radius);
+                padding: 24px;
+                width: 320px;
+                box-shadow: var(--shadow-md);
+                color: var(--bg-dark);
+            `;
             
-            videoWidth = videoRect.width;
-            videoHeight = videoRect.height;
+            dialogContent.innerHTML = `
+                <h3 style="margin-bottom: 16px; text-align: center; font-size: 18px;">选择裁剪方式</h3>
+                <div style="display: flex; gap: 16px;">
+                    <button id="areaCropBtn" style="flex: 1; padding: 12px; border: none; border-radius: var(--border-radius); background-color: var(--primary-color); color: white; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M6 2v14h16" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M2 6h14v16" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        区域裁剪
+                    </button>
+                    <button id="timeCropBtn" style="flex: 1; padding: 12px; border: none; border-radius: var(--border-radius); background-color: var(--secondary-color); color: white; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="12" cy="12" r="10" stroke="white" stroke-width="2"/>
+                            <path d="M12 6v6l4 2" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        时间裁剪
+                    </button>
+                </div>
+                <button id="cancelCropTypeBtn" style="width: 100%; margin-top: 16px; padding: 8px; border: none; border-radius: var(--border-radius); background-color: #6c757d; color: white; cursor: pointer;">
+                    取消
+                </button>
+            `;
             
-            // 初始化裁剪区域为视频的中心区域，默认为视频尺寸的80%
-            const initialWidth = videoWidth * 0.8;
-            const initialHeight = videoHeight * 0.8;
+            cropTypeDialog.appendChild(dialogContent);
+            document.body.appendChild(cropTypeDialog);
             
-            cropArea.style.width = initialWidth + 'px';
-            cropArea.style.height = initialHeight + 'px';
-            cropArea.style.left = (videoWidth - initialWidth) / 2 + 'px';
-            cropArea.style.top = (videoHeight - initialHeight) / 2 + 'px';
+            // 区域裁剪按钮点击事件
+            document.getElementById('areaCropBtn').addEventListener('click', () => {
+                document.body.removeChild(cropTypeDialog);
+                
+                // 显示裁剪容器
+                cropContainer.style.display = 'block';
+                
+                // 获取视频的实际显示尺寸
+                const videoRect = preview.getBoundingClientRect();
+                const containerRect = cropContainer.getBoundingClientRect();
+                
+                videoWidth = videoRect.width;
+                videoHeight = videoRect.height;
+                
+                // 初始化裁剪区域为视频的中心区域，默认为视频尺寸的80%
+                const initialWidth = videoWidth * 0.8;
+                const initialHeight = videoHeight * 0.8;
+                
+                cropArea.style.width = initialWidth + 'px';
+                cropArea.style.height = initialHeight + 'px';
+                cropArea.style.left = (videoWidth - initialWidth) / 2 + 'px';
+                cropArea.style.top = (videoHeight - initialHeight) / 2 + 'px';
+            });
+            
+            // 时间裁剪按钮点击事件
+            document.getElementById('timeCropBtn').addEventListener('click', () => {
+                document.body.removeChild(cropTypeDialog);
+                
+                // 显示时间裁剪界面
+                window.timeTrim.show();
+            });
+            
+            // 取消按钮点击事件
+            document.getElementById('cancelCropTypeBtn').addEventListener('click', () => {
+                document.body.removeChild(cropTypeDialog);
+            });
         });
         
         // 取消裁剪按钮点击事件
@@ -1657,6 +1765,15 @@
             isResizing = false;
             currentHandle = null;
         });
+        // 引入时间裁剪功能的脚本
+        const timeTrimScript = document.createElement('script');
+        timeTrimScript.src = 'time-trim.js';
+        document.body.appendChild(timeTrimScript);
+        
+        // 在脚本加载完成后初始化时间裁剪功能
+        timeTrimScript.onload = () => {
+            window.timeTrim.init();
+        };
     </script>
 </body>
 </html>
