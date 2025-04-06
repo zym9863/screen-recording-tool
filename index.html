@@ -401,6 +401,14 @@
             <div class="resolution-tip">降低分辨率可以减少卡顿，提高录制流畅度</div>
         </div>
         
+        <div class="audio-selector">
+            <label class="audio-toggle">
+                <input type="checkbox" id="audioToggle">
+                <span class="toggle-slider"></span>
+                <span>录制系统音频</span>
+            </label>
+        </div>
+        
         <div class="preview-area">
             <video id="preview" controls></video>
             <div id="placeholder">录制的视频将在这里显示</div>
@@ -773,7 +781,12 @@
                     const videoConstraints = getResolutionConstraints();
                     
                     const stream = await navigator.mediaDevices.getUserMedia({
-                        audio: false,
+                        audio: audioToggle.checked ? {
+                            mandatory: {
+                                chromeMediaSource: 'desktop',
+                                chromeMediaSourceId: selectedSource.id
+                            }
+                        } : false,
                         video: videoConstraints
                     });
 

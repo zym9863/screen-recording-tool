@@ -8,6 +8,7 @@ A desktop screen recording application based on Electron, providing a simple and
 
 - **Multiple Recording Modes**: Support for recording the entire screen or a single window
 - **Resolution Selection**: Offers multiple recording resolution options (e.g., original, 1080p, 720p) to balance clarity and performance
+- **Audio Recording**: Option to record system audio 
 - **Video Cropping**: Support for cropping the recorded video area and trimming video timeline
 - **Real-time Preview**: Immediately preview the recorded content after recording
 - **Local Saving**: Save the recorded content as MP4 format, using `ffmpeg` for H.264 encoding and optimization to improve mobile device compatibility
@@ -50,6 +51,7 @@ After building, you can find the installation package for your platform in the `
 2. **Start Recording**:
    - Click the "Screen Recording" button
    - Select the window or screen to record in the popup window
+   - Choose whether to record system audio 
    - After confirming your selection, recording begins
    - You can see the recording duration during the process
 
