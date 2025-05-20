@@ -11,10 +11,10 @@ jobs:
 
     steps:
       - name: 检出代码
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: 设置 Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
@@ -28,11 +28,13 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: 上传构建产物
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: windows-build
           path: dist/*.exe
           retention-days: 5
+          compression-level: 9 # 最高压缩级别，减小文件大小
+          overwrite: true # 如果存在同名构建产物则覆盖
 
       - name: 创建发布并上传资源
         uses: softprops/action-gh-release@v1
