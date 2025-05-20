@@ -1,0 +1,56 @@
+name: 发布 Windows 版本
+
+on:
+  push:
+    tags:
+      - 'v*.*.*' # 触发条件：当一个形如 v1.0.0 的标签被推送时
+
+jobs:
+  build-windows:
+    runs-on: windows-latest # 只在 Windows 上运行
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v3
+
+      - name: 设置 Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: 安装依赖
+        run: npm install
+
+      - name: 构建应用
+        run: npm run build -- --win
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 上传构建产物
+        uses: actions/upload-artifact@v3
+        with:
+          name: windows-build
+          path: dist/*.exe
+          retention-days: 5
+
+      - name: 创建发布并上传资源
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            dist/*.exe
+            dist/*.zip
+          name: 屏幕录制工具 ${{ github.ref_name }}
+          body: |
+            ## 屏幕录制工具 Windows 版本 ${{ github.ref_name }}
+
+            ### 安装方法
+            下载并运行 .exe 安装文件
+
+            ### 更新内容
+            - 自动构建的 Windows 版本
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

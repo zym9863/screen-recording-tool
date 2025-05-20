@@ -80,3 +80,25 @@ npm run build
 - @electron/remote：主进程与渲染进程通信
 - Node.js `fs`：文件系统操作
 - `@ffmpeg-installer/ffmpeg` & `fluent-ffmpeg`：用于视频处理（裁剪和编码优化）
+
+## 自动化发布
+
+本项目使用 GitHub Actions 实现自动化构建和发布 Windows 版本。
+
+### 发布新版本
+
+1. 更新 `package.json` 中的版本号
+2. 提交更改并推送到 GitHub
+3. 创建一个新的标签（格式为 `vX.Y.Z`，例如 `v1.0.1`）
+   ```bash
+   git tag v1.0.1
+   git push origin v1.0.1
+   ```
+4. GitHub Actions 将自动构建 Windows 版本并创建一个新的 Release
+
+### GitHub Actions 工作流程
+
+- 当推送带有 `v` 前缀的标签时触发构建
+- 自动构建 Windows 安装包
+- 创建 GitHub Release 并上传构建产物
+- 可在 GitHub 仓库的 Releases 页面下载安装包

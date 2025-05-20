@@ -8,7 +8,7 @@ A desktop screen recording application based on Electron, providing a simple and
 
 - **Multiple Recording Modes**: Support for recording the entire screen or a single window
 - **Resolution Selection**: Offers multiple recording resolution options (e.g., original, 1080p, 720p) to balance clarity and performance
-- **Audio Recording**: Option to record system audio 
+- **Audio Recording**: Option to record system audio
 - **Video Cropping**: Support for cropping the recorded video area and trimming video timeline
 - **Real-time Preview**: Immediately preview the recorded content after recording
 - **Local Saving**: Save the recorded content as MP4 format, using `ffmpeg` for H.264 encoding and optimization to improve mobile device compatibility
@@ -51,7 +51,7 @@ After building, you can find the installation package for your platform in the `
 2. **Start Recording**:
    - Click the "Screen Recording" button
    - Select the window or screen to record in the popup window
-   - Choose whether to record system audio 
+   - Choose whether to record system audio
    - After confirming your selection, recording begins
    - You can see the recording duration during the process
 
@@ -80,3 +80,25 @@ After building, you can find the installation package for your platform in the `
 - @electron/remote: Inter-process communication between main and renderer processes
 - Node.js `fs`: File system operations
 - `@ffmpeg-installer/ffmpeg` & `fluent-ffmpeg`: Used for video processing (cropping and encoding optimization)
+
+## Automated Publishing
+
+This project uses GitHub Actions for automated building and publishing of Windows versions.
+
+### Publishing a New Version
+
+1. Update the version number in `package.json`
+2. Commit changes and push to GitHub
+3. Create a new tag (format `vX.Y.Z`, e.g., `v1.0.1`)
+   ```bash
+   git tag v1.0.1
+   git push origin v1.0.1
+   ```
+4. GitHub Actions will automatically build the Windows version and create a new Release
+
+### GitHub Actions Workflow
+
+- Build is triggered when a tag with a `v` prefix is pushed
+- Automatically builds Windows installation package
+- Creates a GitHub Release and uploads build artifacts
+- Installation packages can be downloaded from the Releases page of the GitHub repository
